@@ -1,9 +1,21 @@
 import { GoogleGenAI } from "@google/genai";
 import { Client, Equipment } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+// Helper to safely access process.env without crashing in browser environments
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore reference errors
+  }
+  return '';
+};
 
-// Initialize client safely (it might fail if key is missing, handled in call)
+const apiKey = getApiKey();
+
+// Initialize client safely
 const ai = new GoogleGenAI({ apiKey });
 
 export const generateAssistantResponse = async (
@@ -11,7 +23,7 @@ export const generateAssistantResponse = async (
   contextData: { clients: Client[], currentView: string }
 ): Promise<string> => {
   if (!apiKey) {
-    return "API Key não configurada. Por favor configure a variável de ambiente API_KEY.";
+    return "API Key não configurada. A funcionalidade de IA está indisponível neste momento.";
   }
 
   try {
