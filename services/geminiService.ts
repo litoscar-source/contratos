@@ -1,11 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
-import { Client, Equipment } from "../types";
+import { Client } from "../types";
 
 // Helper to safely access process.env without crashing in browser environments
 const getApiKey = () => {
   try {
-    if (typeof process !== 'undefined' && process.env) {
+    // Check if process exists and has env (Node/Build envs)
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
       return process.env.API_KEY;
+    }
+    // Fallback for Vite/other bundlers that might inject import.meta.env
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_KEY) {
+      // @ts-ignore
+      return import.meta.env.VITE_API_KEY;
     }
   } catch (e) {
     // Ignore reference errors
@@ -13,20 +20,21 @@ const getApiKey = () => {
   return '';
 };
 
-const apiKey = getApiKey();
-
-// Initialize client safely
-const ai = new GoogleGenAI({ apiKey });
-
 export const generateAssistantResponse = async (
   prompt: string,
   contextData: { clients: Client[], currentView: string }
 ): Promise<string> => {
+  const apiKey = getApiKey();
+
   if (!apiKey) {
-    return "API Key não configurada. A funcionalidade de IA está indisponível neste momento.";
+    console.warn("Gemini API Key missing");
+    return "A chave de API não está configurada. Por favor configure a variável de ambiente API_KEY (ou VITE_API_KEY) no seu servidor.";
   }
 
   try {
+    // Initialize client only when needed to avoid startup crashes
+    const ai = new GoogleGenAI({ apiKey });
+
     // Prepare a lightweight context summary
     const dataSummary = contextData.clients.map(c => ({
       name: c.name,
@@ -63,6 +71,6 @@ export const generateAssistantResponse = async (
     return response.text || "Não foi possível gerar uma resposta.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Desculpe, ocorreu um erro ao contactar a IA.";
+    return "Desculpe, ocorreu um erro ao contactar a IA. Verifique a consola para mais detalhes.";
   }
 };

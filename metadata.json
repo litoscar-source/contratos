@@ -1,7 +1,5 @@
 {
   "name": "Marques Gestão de Contratos",
   "description": "Aplicação para gestão de contratos de manutenção, histórico de equipamentos e visitas técnicas para básculas e balanças industriais.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

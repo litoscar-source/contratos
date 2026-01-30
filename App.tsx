@@ -8,7 +8,6 @@ import AddClientModal from './components/AddClientModal';
 import AddEquipmentModal from './components/AddEquipmentModal';
 import PaymentModal from './components/PaymentModal';
 import ImportModal from './components/ImportModal';
-import GeminiAssistant from './components/GeminiAssistant';
 import { 
   LayoutDashboard, 
   Users, 
@@ -42,7 +41,6 @@ const App = () => {
   
   // Modal States
   const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
-  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isAddEquipmentModalOpen, setIsAddEquipmentModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -935,12 +933,6 @@ const App = () => {
           onSave={handleRegisterPayment}
         />
       )}
-
-      <GeminiAssistant 
-        clients={clients} 
-        isOpen={isAssistantOpen} 
-        onToggle={() => setIsAssistantOpen(!isAssistantOpen)} 
-      />
 
     </div>
   );
