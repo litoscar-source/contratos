@@ -28,6 +28,8 @@ export interface Visit {
   viewerChanged?: boolean;
   oldViewerSerial?: string;
   newViewerSerial?: string;
+  clientName?: string;
+  equipmentName?: string;
 }
 
 export interface Contract {
@@ -44,21 +46,33 @@ export interface Contract {
   usedTruckVisits: number;
   renewed?: boolean;
   renewalDate?: string;
-  contractFile?: Attachment; // New field for the contract PDF
+  contractFile?: Attachment;
+  renewalFile?: Attachment;
 }
 
 export interface Equipment {
   id: string;
   clientId: string;
-  location: string;
-  productName: string; // e.g., "Báscula Ponte"
-  weightCapacity: string; // e.g., "60 Ton"
-  loadCells?: string; // New field for load cells description
+  
+  // New Location & Identification Fields
+  geoGrid?: string;             // Localização geográfica
+  deliveryAddress?: string;     // MORADA DE ENTREGA
+  locality?: string;            // LOCALIDADE
+  municipality?: string;        // CONCELHO
+  district?: string;            // DISTRITO
+  executionSite?: string;       // Local de Execução consolidado
+  description?: string;         // Descrição do Serviço / Equipamento
+  
+  location: string;             // Field already in use for quick ref
+  productName: string;          // TIPO EQUIPAMENTO
+  weightCapacity: string;       // CAPACIDADE CE
+  loadCells?: string;           // CÉLULA DE CARGA
   installDate: string;
   type: EquipmentType;
-  equipmentSerial: string;
-  viewerModel: string;
-  viewerSerial: string;
+  equipmentSerial: string;      // NÚMERO DE SÉRIE EQUIPAMENTO
+  viewerModel: string;          // VISOR
+  viewerSerial: string;         // NÚMERO DE SÉRIE VISOR
+  
   visits: Visit[];
   contract?: Contract;
 }
@@ -67,6 +81,8 @@ export interface Client {
   id: string;
   name: string;
   address: string;
+  locality: string;
+  district: string;
   contactPerson: string;
   email: string;
   phone: string;
@@ -75,7 +91,6 @@ export interface Client {
 
 export type PageView = 'DASHBOARD' | 'CLIENTS' | 'CALENDAR';
 
-// Helper to format date to DD/MM/YYYY
 export const formatDatePT = (dateString?: string) => {
   if (!dateString) return '-';
   try {

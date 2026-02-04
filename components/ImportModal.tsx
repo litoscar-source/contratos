@@ -86,18 +86,12 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             // Normalize Client
             let client = clientsMap.get(clientName);
             if (!client) {
-                // Construct Address from columns: MORADA DE ENTREGA, LOCALIDADE, CONCELHO, DISTRITO
-                const addressParts = [
-                    row['MORADA DE ENTREGA'], 
-                    row['LOCALIDADE'], 
-                    row['CONCELHO'], 
-                    row['DISTRITO']
-                ].filter(val => val && String(val).trim() !== '');
-
                 client = {
                     id: `import-c-${Date.now()}-${index}`,
                     name: clientName,
-                    address: addressParts.join(', ') || 'Morada desconhecida',
+                    address: row['MORADA DE ENTREGA'] || 'Morada desconhecida',
+                    locality: row['LOCALIDADE'] || '',
+                    district: row['DISTRITO'] || '',
                     contactPerson: 'Não especificado', // Not in file
                     email: '', // Not in file
                     phone: '', // Not in file
@@ -112,8 +106,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             const installDate = startDate || new Date().toISOString().split('T')[0]; 
             
             // Determine Payment
-            // If PAGO has a date (e.g. 06/11/2025), it is paid on that date.
-            // If PAGO has "Sim", it is paid.
             const pagoVal = String(row['PAGO'] || '').trim();
             let isPaid = false;
             let paymentDate = '';
@@ -168,7 +160,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
                     id: `import-v-${Date.now()}-${index}`,
                     equipmentId: equipment.id,
                     date: lastVisitDate,
-                    type: VisitType.RECONSTRUCTION, // Assuming CE check implies a reconstruction/calibration event
+                    type: VisitType.RECONSTRUCTION,
                     technician: 'Histórico Importado',
                     notes: 'Última Visita CE (Dados Importados)',
                     files: []
@@ -199,8 +191,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            // Custom transform header not strictly needed if we use normalizeHeaders later, 
-            // but good for initial cleanup
             transformHeader: (h) => h.trim().replace(/"/g, ''),
             complete: (results) => {
                 if (results.errors.length > 0) {
@@ -220,9 +210,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
-                // IMPORTANT: raw: false forces parsing dates as formatted text (e.g. "06/11/2025")
-                // which matches our parseDate logic for DD/MM/YYYY
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "", raw: false });
                 processData(jsonData);
             } catch (err) {
@@ -316,7 +303,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             )}
             
             <div className="mt-4 pt-4 border-t border-slate-100 text-[10px] text-slate-400">
-                <p>O sistema processará colunas como: CLIENTE, MORADA DE ENTREGA, TIPO EQUIPAMENTO, CAPACIDADE CE, PAGO, DATA INICIO CONTRATO, etc.</p>
+                <p>O sistema processará colunas como: CLIENTE, MORADA DE ENTREGA, LOCALIDADE, DISTRITO, TIPO EQUIPAMENTO, etc.</p>
             </div>
         </div>
       </div>
