@@ -283,17 +283,20 @@ const App = () => {
           equipments: c.equipments.map(e => {
             if (e.id === selectedEquipment.id) {
               let updatedVisits = [...e.visits];
-              let updatedContract = { ...e.contract! };
+              let updatedContract = e.contract ? { ...e.contract } : undefined;
+              
               if (visitData.id) {
                 updatedVisits = e.visits.map(v => v.id === visitData.id ? { ...v, ...visitData } : v);
               } else {
                 const newVisit: Visit = { id: Math.random().toString(36).substr(2, 9), equipmentId: selectedEquipment.id, ...visitData };
                 updatedVisits = [newVisit, ...e.visits];
-                updatedContract = e.contract ? {
-                    ...e.contract,
-                    usedLightVisits: visitData.type === VisitType.ASSIST_LIGHT ? e.contract.usedLightVisits + 1 : e.contract.usedLightVisits,
-                    usedTruckVisits: visitData.type === VisitType.ASSIST_TRUCK ? e.contract.usedTruckVisits + 1 : e.contract.usedTruckVisits
-                  } : updatedContract;
+                if (updatedContract) {
+                   updatedContract = {
+                    ...updatedContract,
+                    usedLightVisits: visitData.type === VisitType.ASSIST_LIGHT ? updatedContract.usedLightVisits + 1 : updatedContract.usedLightVisits,
+                    usedTruckVisits: visitData.type === VisitType.ASSIST_TRUCK ? updatedContract.usedTruckVisits + 1 : updatedContract.usedTruckVisits
+                  };
+                }
               }
               const updatedEquip = {
                 ...e,
@@ -313,6 +316,59 @@ const App = () => {
     setClients(updatedClients);
     const updatedSelectedClient = updatedClients.find(c => c.id === selectedClient.id);
     if(updatedSelectedClient) setSelectedClient(updatedSelectedClient);
+    setEditingVisit(undefined);
+    setIsVisitModalOpen(false);
+  };
+
+  const handleDeleteVisit = (visitId: string) => {
+    if (!selectedEquipment || !selectedClient) return;
+    
+    if (!window.confirm("Tem a certeza que deseja eliminar este registo de visita?")) return;
+
+    const updatedClients = clients.map(c => {
+      if (c.id === selectedClient.id) {
+        return {
+          ...c,
+          equipments: c.equipments.map(e => {
+            if (e.id === selectedEquipment.id) {
+              const visitToDelete = e.visits.find(v => v.id === visitId);
+              const updatedVisits = e.visits.filter(v => v.id !== visitId);
+              
+              let updatedContract = e.contract;
+              // Revert contract usage if applicable
+              if (updatedContract && visitToDelete) {
+                  if (visitToDelete.type === VisitType.ASSIST_LIGHT) {
+                      updatedContract = { ...updatedContract, usedLightVisits: Math.max(0, updatedContract.usedLightVisits - 1) };
+                  } else if (visitToDelete.type === VisitType.ASSIST_TRUCK) {
+                      updatedContract = { ...updatedContract, usedTruckVisits: Math.max(0, updatedContract.usedTruckVisits - 1) };
+                  }
+              }
+
+              const updatedEquip = {
+                ...e,
+                visits: updatedVisits,
+                contract: updatedContract
+              };
+              
+              if (selectedEquipment.id === updatedEquip.id) {
+                  setSelectedEquipment(updatedEquip);
+              }
+              
+              return updatedEquip;
+            }
+            return e;
+          })
+        };
+      }
+      return c;
+    });
+
+    setClients(updatedClients);
+    const updatedClient = updatedClients.find(c => c.id === selectedClient.id);
+    if (updatedClient) {
+        setSelectedClient(updatedClient);
+    }
+
     setEditingVisit(undefined);
     setIsVisitModalOpen(false);
   };
@@ -492,7 +548,12 @@ const App = () => {
                                                 <p className="text-lg font-bold text-blue-400">{selectedEquipment.contract.usedTruckVisits}/{selectedEquipment.contract.totalTruckVisits}</p>
                                              </div>
                                           </div>
-                                          <button onClick={() => setIsVisitModalOpen(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"><Calendar className="w-4 h-4"/> Registar Nova Intervenção</button>
+                                          <button 
+                                            onClick={() => { setEditingVisit(undefined); setIsVisitModalOpen(true); }} 
+                                            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2"
+                                          >
+                                            <Calendar className="w-4 h-4"/> Registar Nova Intervenção
+                                          </button>
                                        </div>
                                      ) : (
                                        <p className="text-xs text-slate-500 italic">Nenhum contrato ativo para este equipamento.</p>
@@ -502,8 +563,15 @@ const App = () => {
                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><History className="w-3.5 h-3.5"/> Histórico</h4>
                                      <div className="space-y-3 overflow-y-auto pr-1">
                                         {selectedEquipment.visits.length === 0 ? <p className="text-[10px] text-slate-400 italic">Sem registos.</p> : selectedEquipment.visits.map(v => (
-                                          <div key={v.id} className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                                             <div className="flex justify-between items-center mb-1"><span className="font-bold text-xs text-slate-800">{v.type}</span><span className="text-[10px] text-slate-400">{formatDatePT(v.date)}</span></div>
+                                          <div 
+                                            key={v.id} 
+                                            onClick={() => { setEditingVisit(v); setIsVisitModalOpen(true); }}
+                                            className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:border-blue-300 transition-colors group"
+                                          >
+                                             <div className="flex justify-between items-center mb-1">
+                                                <span className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">{v.type}</span>
+                                                <span className="text-[10px] text-slate-400">{formatDatePT(v.date)}</span>
+                                             </div>
                                              <p className="text-[10px] text-slate-500 line-clamp-1 italic">{v.notes}</p>
                                           </div>
                                         ))}
@@ -529,7 +597,15 @@ const App = () => {
 
       {/* Modals */}
       {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImportData} />}
-      {isVisitModalOpen && selectedEquipment && <VisitModal initialData={editingVisit} equipment={selectedEquipment} onClose={() => setIsVisitModalOpen(false)} onSave={handleSaveVisit} />}
+      {isVisitModalOpen && selectedEquipment && (
+          <VisitModal 
+            initialData={editingVisit} 
+            equipment={selectedEquipment} 
+            onClose={() => { setIsVisitModalOpen(false); setEditingVisit(undefined); }} 
+            onSave={handleSaveVisit} 
+            onDelete={handleDeleteVisit} 
+          />
+      )}
       {isAddClientModalOpen && <AddClientModal initialData={editingClient} onClose={() => setIsAddClientModalOpen(false)} onSave={handleSaveClient} />}
       {isAddEquipmentModalOpen && <AddEquipmentModal initialData={editingEquipment} onClose={() => setIsAddEquipmentModalOpen(false)} onSave={handleSaveEquipment} />}
       {isPaymentModalOpen && selectedEquipment?.contract && <PaymentModal contract={selectedEquipment.contract} onClose={() => setIsPaymentModalOpen(false)} onSave={handleRegisterPayment} />}
@@ -542,10 +618,6 @@ const NavItem = ({ icon, label, active, onClick }: { icon: React.ReactNode, labe
     {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5' })}
     {label}
   </button>
-);
-
-const CheckIcon = ({ className }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>
 );
 
 export default App;
