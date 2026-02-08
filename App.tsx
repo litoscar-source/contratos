@@ -374,6 +374,54 @@ const App = () => {
   };
 
   // --- Main Layout ---
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300 mx-4">
+          <div className="flex flex-col items-center mb-8">
+            <div className="p-4 bg-blue-100 rounded-full mb-4">
+              <Lock className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800">Marques Gestão</h1>
+            <p className="text-sm text-slate-500">Acesso Reservado</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Código de Acesso</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-center tracking-widest text-lg"
+                placeholder="••••"
+                autoFocus
+              />
+            </div>
+
+            {loginError && (
+              <div className="flex items-center justify-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg animate-in shake">
+                <AlertCircle className="w-4 h-4" />
+                <span>Código incorreto. Tente novamente.</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-3 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+            >
+              Entrar
+            </button>
+          </form>
+          
+          <div className="mt-8 text-center">
+             <p className="text-xs text-slate-400">Sistema de Gestão de Contratos v1.0</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       
