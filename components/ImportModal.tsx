@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileSpreadsheet, AlertCircle, Check, HelpCircle } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, AlertCircle, Check, HelpCircle, Download } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { Client, Equipment, EquipmentType } from '../types';
@@ -77,7 +77,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
 
         // 1. Encontrar a linha de cabeçalho (Score based)
         // Procuramos palavras-chave essenciais. A linha com mais matches vence.
-        const keywords = ['CLIENTE', 'MORADA', 'EQUIPAMENTO', 'VISOR', 'CAPACIDADE', 'CONTRATO', 'DATA'];
+        const keywords = ['CLIENTE', 'MORADA', 'EQUIPAMENTO', 'VISOR', 'CAPACIDADE', 'CONTRATO', 'DATA', 'LOCALIDADE', 'DISTRITO', 'CONCELHO'];
         
         let headerRowIndex = -1;
         let maxMatches = 0;
@@ -95,8 +95,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             }
         }
 
-        if (headerRowIndex === -1 || maxMatches < 2) {
-            setError("Não foi possível identificar a linha de cabeçalho. Verifique se o Excel tem colunas como 'CLIENTE', 'MORADA', 'EQUIPAMENTO'.");
+        if (headerRowIndex === -1 || maxMatches < 1) {
+            setError("Não foi possível identificar a linha de cabeçalho. Verifique se o Excel tem colunas como 'CLIENTE', 'MORADA', 'LOCALIDADE'.");
             return;
         }
 
@@ -160,9 +160,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             const execucao = getVal(row, 'EXECUCAO');
 
             // Specs
-            const tipoEquip = getVal(row, 'TIPO_EQUIP') || 'Equipamento Geral';
+            const tipoEquip = getVal(row, 'TIPO_EQUIP');
             const capacidade = getVal(row, 'CAPACIDADE');
-            const nsEquip = getVal(row, 'NS_EQUIP') || 'S/N';
+            const nsEquip = getVal(row, 'NS_EQUIP');
             const celulas = getVal(row, 'CELULAS');
             const visor = getVal(row, 'VISOR');
             const nsVisor = getVal(row, 'NS_VISOR');
@@ -191,6 +191,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
                     name: clientName,
                     address: morada || 'Morada desconhecida',
                     locality: localidade,
+                    municipality: concelho,
                     district: distrito,
                     contactPerson: 'Gestão de Contratos',
                     email: '',
@@ -200,48 +201,52 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
                 clientsMap.set(clientName, client);
             }
 
-            // Equipment Mgmt
-            const equipment: Equipment = {
-                id: `imp-e-${index}-${equipCount++}`,
-                clientId: client.id,
-                
-                deliveryAddress: morada,
-                locality: localidade,
-                municipality: concelho,
-                district: distrito,
-                executionSite: execucao,
-                description: fullDesc,
-                
-                // Display Location Priority
-                location: execucao || morada || localidade || 'Local não definido',
-                
-                productName: tipoEquip,
-                weightCapacity: capacidade,
-                loadCells: celulas,
-                equipmentSerial: nsEquip,
-                viewerModel: visor,
-                viewerSerial: nsVisor,
-                
-                installDate: dtInicio || new Date().toISOString().split('T')[0],
-                type: mapEquipmentType(tipoEquip),
-                visits: [],
-                contract: {
-                    id: `imp-ctr-${index}`,
-                    equipmentId: '', // set after
-                    startDate: dtInicio || new Date().toISOString().split('T')[0],
-                    endDate: dtFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-                    invoiceNumber: '',
-                    isPaid: isPaid,
-                    totalLightVisits: vLigeiro,
-                    usedLightVisits: 0,
-                    totalTruckVisits: vPesado,
-                    usedTruckVisits: 0,
-                    renewed: false
-                }
-            };
-            if(equipment.contract) equipment.contract.equipmentId = equipment.id;
+            // Equipment Mgmt - Only add if there is equipment data
+            const hasEquipmentData = tipoEquip || (nsEquip && nsEquip !== 'S/N') || capacidade || celulas || visor || nsVisor;
             
-            client.equipments.push(equipment);
+            if (hasEquipmentData) {
+                const equipment: Equipment = {
+                    id: `imp-e-${index}-${equipCount++}`,
+                    clientId: client.id,
+                    
+                    deliveryAddress: morada,
+                    locality: localidade,
+                    municipality: concelho,
+                    district: distrito,
+                    executionSite: execucao,
+                    description: fullDesc,
+                    
+                    // Display Location Priority
+                    location: execucao || morada || localidade || 'Local não definido',
+                    
+                    productName: tipoEquip || 'Equipamento Geral',
+                    weightCapacity: capacidade,
+                    loadCells: celulas,
+                    equipmentSerial: nsEquip || 'S/N',
+                    viewerModel: visor,
+                    viewerSerial: nsVisor,
+                    
+                    installDate: dtInicio || new Date().toISOString().split('T')[0],
+                    type: mapEquipmentType(tipoEquip || ''),
+                    visits: [],
+                    contract: {
+                        id: `imp-ctr-${index}`,
+                        equipmentId: '', // set after
+                        startDate: dtInicio || new Date().toISOString().split('T')[0],
+                        endDate: dtFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                        invoiceNumber: '',
+                        isPaid: isPaid,
+                        totalLightVisits: vLigeiro,
+                        usedLightVisits: 0,
+                        totalTruckVisits: vPesado,
+                        usedTruckVisits: 0,
+                        renewed: false
+                    }
+                };
+                if(equipment.contract) equipment.contract.equipmentId = equipment.id;
+                
+                client.equipments.push(equipment);
+            }
         });
 
         const clientsArray = Array.from(clientsMap.values());
@@ -294,6 +299,25 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
     }
   };
 
+  const handleDownloadTemplate = () => {
+      const headers = [
+          'CLIENTE', 'MORADA', 'LOCALIDADE', 'CONCELHO', 'DISTRITO', 
+          'TIPO_EQUIP', 'CAPACIDADE', 'NS_EQUIP', 'CELULAS', 'VISOR', 'NS_VISOR',
+          'EXECUCAO', 'DESCRICAO', 'DATA_INICIO', 'DATA_FIM', 'VISITA_LIGEIRO', 'VISITA_PESADO'
+      ];
+      // Add BOM for Excel UTF-8 recognition and use semicolon delimiter
+      const csvContent = "\uFEFF" + headers.join(";");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "modelo_importacao.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -310,6 +334,16 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
         <div className="p-6 space-y-4">
             {!stats ? (
                 <>
+                    <div className="flex justify-end">
+                        <button 
+                            onClick={handleDownloadTemplate}
+                            className="text-xs text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1 hover:underline"
+                        >
+                            <Download className="w-3 h-3" />
+                            Descarregar Modelo CSV
+                        </button>
+                    </div>
+
                     <div className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-slate-50 hover:bg-slate-100 transition-colors">
                         <input 
                             type="file" 

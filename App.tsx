@@ -80,8 +80,19 @@ const App = () => {
               const newEquipments = imported.equipments.filter(ie => 
                   !existingClient.equipments.some(ee => ee.equipmentSerial === ie.equipmentSerial)
               );
+              
+              // Merge client details (prefer imported if valid)
+              const updatedAddress = imported.address && imported.address !== 'Morada desconhecida' ? imported.address : existingClient.address;
+              const updatedLocality = imported.locality || existingClient.locality;
+              const updatedDistrict = imported.district || existingClient.district;
+              const updatedMunicipality = imported.municipality || existingClient.municipality;
+              
               currentClients[existingIndex] = {
                   ...existingClient,
+                  address: updatedAddress,
+                  locality: updatedLocality,
+                  district: updatedDistrict,
+                  municipality: updatedMunicipality,
                   equipments: [...existingClient.equipments, ...newEquipments]
               };
           } else {
@@ -373,6 +384,18 @@ const App = () => {
     setIsVisitModalOpen(false);
   };
 
+  const handleExportData = () => {
+    const dataStr = JSON.stringify(clients, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `marques_gestao_backup_${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
   // --- Main Layout ---
   if (!isAuthenticated) {
     return (
@@ -482,7 +505,14 @@ const App = () => {
                 className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md text-sm font-medium transition-colors border border-emerald-100"
              >
                 <Upload className="w-4 h-4" />
-                Importar Dados Técnicos
+                Importar Clientes / Dados
+             </button>
+             <button 
+                onClick={handleExportData}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors border border-blue-100"
+             >
+                <Download className="w-4 h-4" />
+                Exportar BD
              </button>
             <button className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
               <Settings className="w-5 h-5" />
@@ -522,6 +552,11 @@ const App = () => {
                             <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded inline-block my-2">ID: {selectedClient.id}</span>
                             <div className="space-y-2 text-sm text-slate-600">
                               <p className="flex items-center"><MapPin className="w-4 h-4 mr-2 text-slate-400"/> {selectedClient.address}</p>
+                              <p className="flex items-center text-xs ml-6 text-slate-500">
+                                {selectedClient.locality} 
+                                {selectedClient.municipality ? `, ${selectedClient.municipality}` : ''} 
+                                {selectedClient.district ? ` (${selectedClient.district})` : ''}
+                              </p>
                               <p className="flex items-center"><Users className="w-4 h-4 mr-2 text-slate-400"/> {selectedClient.contactPerson}</p>
                             </div>
                          </div>
@@ -531,8 +566,8 @@ const App = () => {
                              <button onClick={() => { setEditingEquipment(undefined); setIsAddEquipmentModalOpen(true); }} className="p-1 hover:bg-slate-200 rounded text-slate-500"><Plus className="w-4 h-4" /></button>
                            </div>
                            <div className="overflow-y-auto p-2">
-                             {selectedClient.equipments.map(eq => (
-                               <div key={eq.id} onClick={() => setSelectedEquipment(eq)} className={`p-3 rounded-lg cursor-pointer transition-all border mb-2 ${selectedEquipment?.id === eq.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'}`}>
+                             {selectedClient.equipments.map((eq, idx) => (
+                               <div key={`${eq.id}-${idx}`} onClick={() => setSelectedEquipment(eq)} className={`p-3 rounded-lg cursor-pointer transition-all border mb-2 ${selectedEquipment?.id === eq.id ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-transparent hover:border-slate-200 hover:bg-slate-50'}`}>
                                   <div className="flex justify-between items-start">
                                     <p className="font-semibold text-sm text-slate-800">{eq.productName}</p>
                                     <button onClick={(e) => { e.stopPropagation(); handleDeleteEquipment(eq.id); }} className="text-slate-300 hover:text-red-500 p-1"><Trash2 className="w-3 h-3" /></button>
@@ -610,9 +645,9 @@ const App = () => {
                                   <div className="flex-1 overflow-hidden flex flex-col">
                                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><History className="w-3.5 h-3.5"/> Histórico</h4>
                                      <div className="space-y-3 overflow-y-auto pr-1">
-                                        {selectedEquipment.visits.length === 0 ? <p className="text-[10px] text-slate-400 italic">Sem registos.</p> : selectedEquipment.visits.map(v => (
+                                        {selectedEquipment.visits.length === 0 ? <p className="text-[10px] text-slate-400 italic">Sem registos.</p> : selectedEquipment.visits.map((v, idx) => (
                                           <div 
-                                            key={v.id} 
+                                            key={`${v.id}-${idx}`} 
                                             onClick={() => { setEditingVisit(v); setIsVisitModalOpen(true); }}
                                             className="p-3 bg-white border border-slate-200 rounded-lg shadow-sm cursor-pointer hover:border-blue-300 transition-colors group"
                                           >

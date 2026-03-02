@@ -147,6 +147,7 @@ const ClientList: React.FC<ClientListProps> = ({ clients, onSelectClient, onAddC
                                             <div className="flex items-center gap-1.5">
                                                 <Globe className="w-3 h-3 text-slate-400" />
                                                 <span className="font-medium">{client.locality}</span>
+                                                {client.municipality && <span className="text-slate-400 text-xs">({client.municipality})</span>}
                                             </div>
                                             <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider ml-[18px]">
                                                 {client.district}

@@ -82,6 +82,7 @@ export interface Client {
   name: string;
   address: string;
   locality: string;
+  municipality?: string;
   district: string;
   contactPerson: string;
   email: string;
