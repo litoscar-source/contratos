@@ -6,21 +6,29 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0 --rule 'react-hooks/exhaustive-deps: off' --rule 'react-hooks/rules-of-hooks: off'"
   },
   "dependencies": {
-    "recharts": "^3.7.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "@google/genai": "^1.38.0",
     "lucide-react": "^0.563.0",
     "papaparse": "5.4.1",
-    "xlsx": "0.18.5",
-    "@google/genai": "^1.38.0"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "recharts": "^3.7.0",
+    "xlsx": "0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.0",
+    "@typescript-eslint/parser": "^8.57.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.4.0",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.57.0",
     "vite": "^6.2.0"
   }
 }

@@ -11,6 +11,8 @@ interface AddClientModalProps {
 const AddClientModal: React.FC<AddClientModalProps> = ({ initialData, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
+    primaveraId: '',
+    fcm: '',
     address: '',
     locality: '',
     district: '',
@@ -23,6 +25,8 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ initialData, onClose, o
     if (initialData) {
       setFormData({
         name: initialData.name,
+        primaveraId: initialData.primaveraId || '',
+        fcm: initialData.fcm || '',
         address: initialData.address,
         locality: initialData.locality || '',
         district: initialData.district || '',
@@ -64,6 +68,35 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ initialData, onClose, o
                 className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Ex: Transportes Silva Lda"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Cliente Primavera</label>
+              <div className="relative">
+                <Building className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={formData.primaveraId}
+                  onChange={e => setFormData({...formData, primaveraId: e.target.value})}
+                  className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Ex: 4788"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">FCM</label>
+              <div className="relative">
+                <Building className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={formData.fcm}
+                  onChange={e => setFormData({...formData, fcm: e.target.value})}
+                  className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="Ex: 275/2025"
+                />
+              </div>
             </div>
           </div>
 

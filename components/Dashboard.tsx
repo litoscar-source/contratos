@@ -44,13 +44,43 @@ const Dashboard: React.FC<DashboardProps> = ({ clients }) => {
     { name: 'Expirados', value: expiredContracts, color: '#f59e0b' },
   ];
 
-  const activityData = [
-    { name: 'Jan', reconstrucoes: 2, assistencias: 5 },
-    { name: 'Fev', reconstrucoes: 1, assistencias: 3 },
-    { name: 'Mar', reconstrucoes: 3, assistencias: 6 },
-    { name: 'Abr', reconstrucoes: 0, assistencias: 4 },
-    { name: 'Mai', reconstrucoes: 4, assistencias: 8 },
-  ];
+  const calculateActivityData = () => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const data = months.map(m => ({
+      name: m,
+      [VisitType.RECONSTRUCTION]: 0,
+      [VisitType.CALIBRATION]: 0,
+      [VisitType.ASSIST_LIGHT]: 0,
+      [VisitType.ASSIST_TRUCK]: 0,
+    }));
+
+    allEquipments.forEach(eq => {
+      eq.visits.forEach(v => {
+        if (v.date) {
+          const date = new Date(v.date);
+          if (!isNaN(date.getTime())) {
+            const monthIndex = date.getMonth();
+            if (data[monthIndex] && v.type) {
+              data[monthIndex][v.type] = (data[monthIndex][v.type] || 0) + 1;
+            }
+          }
+        }
+      });
+    });
+
+    // Find the first and last month with data to trim the chart
+    let firstMonth = 0;
+    let lastMonth = 11;
+    for (let i = 0; i < 12; i++) {
+        const hasData = data[i][VisitType.RECONSTRUCTION] > 0 || data[i][VisitType.CALIBRATION] > 0 || data[i][VisitType.ASSIST_LIGHT] > 0 || data[i][VisitType.ASSIST_TRUCK] > 0;
+        if (hasData) { firstMonth = Math.min(firstMonth, i); lastMonth = Math.max(lastMonth, i); }
+    }
+    
+    // Always show at least 6 months if possible
+    return data.slice(Math.max(0, new Date().getMonth() - 5), new Date().getMonth() + 1);
+  };
+
+  const activityData = calculateActivityData();
 
   // Filter Logic for the detail table
   const getFilteredData = () => {
@@ -218,8 +248,10 @@ const Dashboard: React.FC<DashboardProps> = ({ clients }) => {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
                 <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
-                <Bar dataKey="reconstrucoes" name="Reconstruções" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="assistencias" name="Assistências" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={VisitType.RECONSTRUCTION} name="Reconstruções" fill="#8b5cf6" radius={[4, 4, 0, 0]} stackId="a" />
+                <Bar dataKey={VisitType.CALIBRATION} name="Calibrações" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
+                <Bar dataKey={VisitType.ASSIST_LIGHT} name="Assist. Ligeiro" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
+                <Bar dataKey={VisitType.ASSIST_TRUCK} name="Assist. Pesado" fill="#10b981" radius={[4, 4, 0, 0]} stackId="a" />
               </BarChart>
             </ResponsiveContainer>
           </div>

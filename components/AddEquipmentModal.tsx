@@ -16,6 +16,7 @@ const AddEquipmentModal: React.FC<AddEquipmentModalProps> = ({ initialData, onCl
     loadCells: '',
     description: '',
     // Technical Location Fields
+    activeId: '',
     geoGrid: '',
     deliveryAddress: '',
     locality: '',
@@ -50,6 +51,7 @@ const AddEquipmentModal: React.FC<AddEquipmentModalProps> = ({ initialData, onCl
         weightCapacity: initialData.weightCapacity,
         loadCells: initialData.loadCells || '',
         description: initialData.description || '',
+        activeId: initialData.activeId || '',
         geoGrid: initialData.geoGrid || '',
         deliveryAddress: initialData.deliveryAddress || '',
         locality: initialData.locality || '',
@@ -140,6 +142,14 @@ const AddEquipmentModal: React.FC<AddEquipmentModalProps> = ({ initialData, onCl
                   required
                   value={formData.equipmentSerial}
                   onChange={e => setFormData({...formData, equipmentSerial: e.target.value})}
+                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">ID ATIVO</label>
+                <input
+                  value={formData.activeId}
+                  onChange={e => setFormData({...formData, activeId: e.target.value})}
                   className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>

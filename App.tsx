@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Client, PageView, Equipment, VisitType, Visit, formatDatePT } from './types';
+import * as XLSX from 'xlsx';
 import { MOCK_CLIENTS } from './constants';
 import ClientList from './components/ClientList';
 import Dashboard from './components/Dashboard';
@@ -77,9 +78,34 @@ const App = () => {
           const existingIndex = currentClients.findIndex(c => c.name.toLowerCase() === imported.name.toLowerCase());
           if (existingIndex >= 0) {
               const existingClient = currentClients[existingIndex];
-              const newEquipments = imported.equipments.filter(ie => 
-                  !existingClient.equipments.some(ee => ee.equipmentSerial === ie.equipmentSerial)
-              );
+              
+              // Merge equipments and visits
+              const mergedEquipments = [...existingClient.equipments];
+              imported.equipments.forEach(ie => {
+                  const existingEqIndex = mergedEquipments.findIndex(ee => 
+                      (ee.equipmentSerial === ie.equipmentSerial && ee.equipmentSerial !== 'S/N') || 
+                      (ee.productName === ie.productName && ie.equipmentSerial === 'S/N')
+                  );
+                  
+                  if (existingEqIndex >= 0) {
+                      // Equipment exists, merge visits
+                      const existingEq = mergedEquipments[existingEqIndex];
+                      const mergedVisits = [...existingEq.visits];
+                      ie.visits.forEach(iv => {
+                          // Check if visit exists by date and type
+                          if (!mergedVisits.some(ev => ev.date === iv.date && ev.type === iv.type)) {
+                              mergedVisits.push(iv);
+                          }
+                      });
+                      mergedEquipments[existingEqIndex] = {
+                          ...existingEq,
+                          visits: mergedVisits
+                      };
+                  } else {
+                      // New equipment
+                      mergedEquipments.push(ie);
+                  }
+              });
               
               // Merge client details (prefer imported if valid)
               const updatedAddress = imported.address && imported.address !== 'Morada desconhecida' ? imported.address : existingClient.address;
@@ -93,7 +119,7 @@ const App = () => {
                   locality: updatedLocality,
                   district: updatedDistrict,
                   municipality: updatedMunicipality,
-                  equipments: [...existingClient.equipments, ...newEquipments]
+                  equipments: mergedEquipments
               };
           } else {
               currentClients.push(imported);
@@ -396,6 +422,86 @@ const App = () => {
     linkElement.click();
   };
 
+  const handleExportExcel = () => {
+    const data: any[] = [];
+    clients.forEach(client => {
+      if (client.equipments.length === 0) {
+        data.push({
+          'CLIENTE': client.name,
+          'MORADA': client.address,
+          'LOCALIDADE': client.locality,
+          'CONCELHO': client.municipality,
+          'DISTRITO': client.district,
+        });
+      } else {
+        client.equipments.forEach(eq => {
+          data.push({
+            'CLIENTE': client.name,
+            'MORADA': eq.deliveryAddress || client.address,
+            'LOCALIDADE': eq.locality || client.locality,
+            'CONCELHO': eq.municipality || client.municipality,
+            'DISTRITO': eq.district || client.district,
+            'EXECUCAO': eq.executionSite,
+            'TIPO_EQUIP': eq.productName,
+            'CAPACIDADE': eq.weightCapacity,
+            'NS_EQUIP': eq.equipmentSerial,
+            'CELULAS': eq.loadCells,
+            'VISOR': eq.viewerModel,
+            'NS_VISOR': eq.viewerSerial,
+            'DESCRICAO': eq.description,
+            'DATA_INICIO': eq.contract?.startDate,
+            'DATA_FIM': eq.contract?.endDate,
+            'ESTADO': eq.contract?.isPaid ? 'Pago' : 'Pendente',
+            'VISITA_LIGEIRO': eq.contract?.totalLightVisits,
+            'VISITA_PESADO': eq.contract?.totalTruckVisits
+          });
+        });
+      }
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Equipamentos");
+    XLSX.writeFile(wb, `exportacao_dados_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleExportVisitsExcel = () => {
+    const data: any[] = [];
+    clients.forEach(client => {
+      client.equipments.forEach(eq => {
+        eq.visits.forEach(v => {
+          data.push({
+            'CLIENTE': client.name,
+            'NS_EQUIP': eq.equipmentSerial,
+            'TIPO_EQUIP': eq.productName,
+            'DATA_VISITA': v.date,
+            'TIPO_SERVICO': v.type,
+            'TECNICO': v.technician,
+            'NOTAS': v.notes
+          });
+        });
+      });
+    });
+
+    // If no visits exist, add an empty row with headers so the user can fill it
+    if (data.length === 0) {
+        data.push({
+            'CLIENTE': '',
+            'NS_EQUIP': '',
+            'TIPO_EQUIP': '',
+            'DATA_VISITA': '',
+            'TIPO_SERVICO': '',
+            'TECNICO': '',
+            'NOTAS': ''
+        });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Visitas");
+    XLSX.writeFile(wb, `exportacao_visitas_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // --- Main Layout ---
   if (!isAuthenticated) {
     return (
@@ -508,11 +614,25 @@ const App = () => {
                 Importar Clientes / Dados
              </button>
              <button 
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-md text-sm font-medium transition-colors border border-green-100"
+             >
+                <Download className="w-4 h-4" />
+                Exportar Clientes/Equip.
+             </button>
+             <button 
+                onClick={handleExportVisitsExcel}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-md text-sm font-medium transition-colors border border-purple-100"
+             >
+                <Download className="w-4 h-4" />
+                Exportar Visitas
+             </button>
+             <button 
                 onClick={handleExportData}
                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md text-sm font-medium transition-colors border border-blue-100"
              >
                 <Download className="w-4 h-4" />
-                Exportar BD
+                Backup JSON
              </button>
             <button className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors">
               <Settings className="w-5 h-5" />
@@ -551,7 +671,9 @@ const App = () => {
                             <h2 className="text-xl font-bold text-slate-800 pr-8">{selectedClient.name}</h2>
                             <span className="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-1 rounded inline-block my-2">ID: {selectedClient.id}</span>
                             <div className="space-y-2 text-sm text-slate-600">
-                              <p className="flex items-center"><MapPin className="w-4 h-4 mr-2 text-slate-400"/> {selectedClient.address}</p>
+                              {selectedClient.primaveraId && <p className="flex items-center text-xs font-mono text-slate-500"><span className="w-16">Primavera:</span> {selectedClient.primaveraId}</p>}
+                              {selectedClient.fcm && <p className="flex items-center text-xs font-mono text-slate-500"><span className="w-16">FCM:</span> {selectedClient.fcm}</p>}
+                              <p className="flex items-center mt-2"><MapPin className="w-4 h-4 mr-2 text-slate-400"/> {selectedClient.address}</p>
                               <p className="flex items-center text-xs ml-6 text-slate-500">
                                 {selectedClient.locality} 
                                 {selectedClient.municipality ? `, ${selectedClient.municipality}` : ''} 
@@ -589,7 +711,8 @@ const App = () => {
                                    <Scale className="w-6 h-6 text-blue-600 mt-1 shrink-0" />
                                    <span>{selectedEquipment.productName} - {selectedEquipment.equipmentSerial}</span>
                                 </h2>
-                                <p className="text-sm text-slate-500 mt-1 flex items-center gap-1"><Navigation className="w-3.5 h-3.5"/> Local de Execução: {selectedEquipment.executionSite || 'Não definido'}</p>
+                                {selectedEquipment.activeId && <span className="text-xs font-mono bg-blue-100 text-blue-700 px-2 py-0.5 rounded mt-2">ID Ativo: {selectedEquipment.activeId}</span>}
+                                <p className="text-sm text-slate-500 mt-2 flex items-center gap-1"><Navigation className="w-3.5 h-3.5"/> Local de Execução: {selectedEquipment.executionSite || 'Não definido'}</p>
                             </div>
                             <div className="p-6 grid grid-cols-2 gap-8 overflow-y-auto">
                                <div className="space-y-6">
@@ -621,7 +744,11 @@ const App = () => {
                                      {selectedEquipment.contract ? (
                                        <div className="space-y-4">
                                           <div className="flex justify-between items-center"><span className="text-xs text-slate-400">Válido até:</span><span className="font-bold text-sm">{formatDatePT(selectedEquipment.contract.endDate)}</span></div>
-                                          <div className="grid grid-cols-2 gap-3">
+                                          <div className="flex justify-between items-center"><span className="text-xs text-slate-400">Estado:</span><span className={`text-xs font-bold px-2 py-1 rounded ${selectedEquipment.contract.isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{selectedEquipment.contract.isPaid ? 'Pago' : 'Pendente'}</span></div>
+                                          {selectedEquipment.contract.status && <div className="flex justify-between items-center"><span className="text-xs text-slate-400">Status:</span><span className="text-xs text-slate-300">{selectedEquipment.contract.status}</span></div>}
+                                          {selectedEquipment.contract.serviceType && <div className="flex justify-between items-center"><span className="text-xs text-slate-400">Tipo Serviço:</span><span className="text-xs text-slate-300">{selectedEquipment.contract.serviceType}</span></div>}
+                                          {selectedEquipment.contract.estimatedHH && <div className="flex justify-between items-center"><span className="text-xs text-slate-400">H-H Estimado:</span><span className="text-xs text-slate-300">{selectedEquipment.contract.estimatedHH}</span></div>}
+                                          <div className="grid grid-cols-2 gap-3 mt-2">
                                              <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 text-center">
                                                 <p className="text-[10px] text-slate-400 uppercase mb-1">Ligeiros</p>
                                                 <p className="text-lg font-bold text-blue-400">{selectedEquipment.contract.usedLightVisits}/{selectedEquipment.contract.totalLightVisits}</p>
@@ -655,7 +782,13 @@ const App = () => {
                                                 <span className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">{v.type}</span>
                                                 <span className="text-[10px] text-slate-400">{formatDatePT(v.date)}</span>
                                              </div>
-                                             <p className="text-[10px] text-slate-500 line-clamp-1 italic">{v.notes}</p>
+                                             {v.lastVisitCE && <p className="text-[10px] text-slate-500"><span className="font-semibold">Última Visita CE:</span> {v.lastVisitCE}</p>}
+                                             {v.truckVisit && <p className="text-[10px] text-slate-500"><span className="font-semibold">Visita Camião:</span> {v.truckVisit}</p>}
+                                             {v.lightVisit2 && <p className="text-[10px] text-slate-500"><span className="font-semibold">Visita Ligeiro 2:</span> {v.lightVisit2}</p>}
+                                             {v.truckActivitySuggestion && <p className="text-[10px] text-slate-500"><span className="font-semibold">Sugestão Camião:</span> {v.truckActivitySuggestion}</p>}
+                                             {v.nextLightActivity && <p className="text-[10px] text-slate-500"><span className="font-semibold">Próxima Ligeiro:</span> {v.nextLightActivity}</p>}
+                                             {v.restriction && <p className="text-[10px] text-slate-500"><span className="font-semibold">Restrição:</span> {v.restriction}</p>}
+                                             <p className="text-[10px] text-slate-500 line-clamp-1 italic mt-1">{v.notes}</p>
                                           </div>
                                         ))}
                                      </div>

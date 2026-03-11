@@ -77,7 +77,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
 
         // 1. Encontrar a linha de cabeçalho (Score based)
         // Procuramos palavras-chave essenciais. A linha com mais matches vence.
-        const keywords = ['CLIENTE', 'MORADA', 'EQUIPAMENTO', 'VISOR', 'CAPACIDADE', 'CONTRATO', 'DATA', 'LOCALIDADE', 'DISTRITO', 'CONCELHO'];
+        const keywords = ['CLIENTE', 'MORADA', 'EQUIPAMENTO', 'VISOR', 'CAPACIDADE', 'CONTRATO', 'DATA', 'LOCALIDADE', 'DISTRITO', 'CONCELHO', 'ESTADO', 'SERVICO', 'VISITA'];
         
         let headerRowIndex = -1;
         let maxMatches = 0;
@@ -106,30 +106,49 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
 
         // Helper para encontrar índice de uma coluna que contenha X
         const findCol = (searchTerms: string[]) => {
+            // 1. Tentar correspondência exata primeiro
+            let idx = headerRow.findIndex(h => searchTerms.some(term => h === term));
+            if (idx !== -1) return idx;
+            // 2. Tentar correspondência parcial
             return headerRow.findIndex(h => searchTerms.some(term => h.includes(term)));
         };
 
         colMap['CLIENTE'] = findCol(['CLIENTE', 'NOME']);
-        colMap['MORADA'] = findCol(['MORADA', 'ENTREGA', 'ENDERECO']);
+        colMap['CLIENTE_PRIMAVERA'] = findCol(['CLIENTEPRIMAVERA']);
+        colMap['ID_ATIVO'] = findCol(['IDATIVO']);
+        colMap['FCM'] = findCol(['FCM']);
+        colMap['PAGO'] = findCol(['PAGO']);
+        colMap['HH_ESTIMADO'] = findCol(['HHESTIMADO']);
+        colMap['GEOGRID'] = findCol(['LOCALIZACAOGEOGRAFICA']);
+        colMap['MORADA'] = findCol(['MORADADEENTREGA', 'MORADA', 'ENTREGA', 'ENDERECO']);
         colMap['LOCALIDADE'] = findCol(['LOCALIDADE']);
         colMap['CONCELHO'] = findCol(['CONCELHO']);
         colMap['DISTRITO'] = findCol(['DISTRITO']);
-        colMap['EXECUCAO'] = findCol(['EXECUCAO', 'LOCALINSTALACAO']);
+        colMap['EXECUCAO'] = findCol(['LOCALDEEXECUCAOCONSOLIDADO', 'EXECUCAO', 'LOCALINSTALACAO']);
         
         colMap['TIPO_EQUIP'] = findCol(['TIPOEQUIPAMENTO', 'PRODUTO', 'MODELO']);
-        colMap['CAPACIDADE'] = findCol(['CAPACIDADE', 'ALCANCE']);
-        colMap['NS_EQUIP'] = findCol(['SERIEEQUIPAMENTO', 'NUMEROSERIE', 'NSERIE']);
-        colMap['CELULAS'] = findCol(['CELULA', 'SENSOR']);
+        colMap['CAPACIDADE'] = findCol(['CAPACIDADECE', 'CAPACIDADE', 'ALCANCE']);
+        colMap['NS_EQUIP'] = findCol(['NUMERODESERIEEQUIPAMENTO', 'SERIEEQUIPAMENTO', 'NUMEROSERIE', 'NSERIE']);
+        colMap['CELULAS'] = findCol(['CELULADECARGA', 'CELULA', 'SENSOR']);
         colMap['VISOR'] = findCol(['VISOR', 'INDICADOR']);
-        colMap['NS_VISOR'] = findCol(['SERIEVISOR']);
-        colMap['DESCRICAO'] = findCol(['DESCRICAO', 'OBSERVACOES']);
-        colMap['TIPO_SERVICO'] = findCol(['TIPOSERVICO']);
+        colMap['NS_VISOR'] = findCol(['NUMERODESERIEVISOR', 'SERIEVISOR']);
+        colMap['DESCRICAO'] = findCol(['DESCRICAODOSERVICO', 'DESCRICAO', 'OBSERVACOES']);
+        colMap['TIPO_SERVICO'] = findCol(['TIPODESERVICO', 'TIPOSERVICO']);
 
-        colMap['DATA_INICIO'] = findCol(['DATAINICIO']);
-        colMap['DATA_FIM'] = findCol(['DATAFIM']);
+        colMap['DATA_INICIO'] = findCol(['DATAINICIOCONTRATO', 'DATAINICIO']);
+        colMap['DATA_FIM'] = findCol(['DATAFIMCONTRATO', 'DATAFIM']);
         colMap['ESTADO'] = findCol(['ESTADO', 'SITUACAO']);
         colMap['VISITA_LIGEIRO'] = findCol(['VISITALIGEIRO', 'LIGEIROS']);
-        colMap['VISITA_PESADO'] = findCol(['VISITAPESADO', 'CAMIAO', 'PESADOS']);
+        colMap['VISITA_PESADO'] = findCol(['VISITAPESADO', 'VISITACAMIAO', 'CAMIAO', 'PESADOS']);
+        
+        colMap['DATA_VISITA'] = findCol(['ULTIMAVISITACE', 'ULTIMAVISITA', 'DATAVISITA', 'DATA_VISITA']);
+        colMap['VISITA_CAMIAO'] = findCol(['VISITACAMIAO']);
+        colMap['VISITA_LIGEIRO2'] = findCol(['VISITALIGEIRO2']);
+        colMap['SUGESTAO_CAMIAO'] = findCol(['SUGESTAOATIVIDADECAMIAO']);
+        colMap['PROXIMA_LIGEIRO'] = findCol(['PROXIMAATIVIDADELIGEIRO']);
+        colMap['RESTRICAO'] = findCol(['RESTRICAO']);
+        colMap['TECNICO'] = findCol(['TECNICO']);
+        colMap['NOTAS'] = findCol(['OBSERVACAO', 'NOTAS', 'OBSERVACOES']);
 
         if (colMap['CLIENTE'] === -1) {
              setError(`Coluna 'CLIENTE' não encontrada na linha ${headerRowIndex + 1}.`);
@@ -178,17 +197,27 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             const estado = getVal(row, 'ESTADO').toLowerCase();
             const isPaid = estado.includes('pago') || estado.includes('liquidado');
             
+            // Visits
+            const dtVisita = parseDate(getVal(row, 'DATA_VISITA'));
+            const tecnico = getVal(row, 'TECNICO');
+            const notas = getVal(row, 'NOTAS');
+
             // Try to parse numbers, handle "1 un" or similar text
             const cleanNum = (s: string) => parseInt(s.replace(/[^0-9]/g, '')) || 0;
             const vLigeiro = cleanNum(getVal(row, 'VISITA_LIGEIRO'));
             const vPesado = cleanNum(getVal(row, 'VISITA_PESADO'));
 
             // Client Mgmt
+            const clientePrimavera = getVal(row, 'CLIENTE_PRIMAVERA');
+            const fcm = getVal(row, 'FCM');
+
             let client = clientsMap.get(clientName);
             if (!client) {
                 client = {
                     id: `imp-c-${index}`,
+                    primaveraId: clientePrimavera,
                     name: clientName,
+                    fcm: fcm,
                     address: morada || 'Morada desconhecida',
                     locality: localidade,
                     municipality: concelho,
@@ -202,50 +231,81 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
             }
 
             // Equipment Mgmt - Only add if there is equipment data
-            const hasEquipmentData = tipoEquip || (nsEquip && nsEquip !== 'S/N') || capacidade || celulas || visor || nsVisor;
+            const idAtivo = getVal(row, 'ID_ATIVO');
+            const geoGrid = getVal(row, 'GEOGRID');
+            const hasEquipmentData = tipoEquip || (nsEquip && nsEquip !== 'S/N') || capacidade || celulas || visor || nsVisor || idAtivo;
             
             if (hasEquipmentData) {
-                const equipment: Equipment = {
-                    id: `imp-e-${index}-${equipCount++}`,
-                    clientId: client.id,
+                let equipment = client.equipments.find(e => 
+                    (e.equipmentSerial === (nsEquip || 'S/N') && (nsEquip || 'S/N') !== 'S/N') || 
+                    (e.productName === (tipoEquip || 'Equipamento Geral') && (nsEquip || 'S/N') === 'S/N')
+                );
+
+                if (!equipment) {
+                    equipment = {
+                        id: `imp-e-${index}-${equipCount++}`,
+                        clientId: client.id,
+                        
+                        activeId: idAtivo,
+                        geoGrid: geoGrid,
+                        deliveryAddress: morada,
+                        locality: localidade,
+                        municipality: concelho,
+                        district: distrito,
+                        executionSite: execucao,
+                        description: fullDesc,
+                        
+                        // Display Location Priority
+                        location: execucao || morada || localidade || 'Local não definido',
+                        
+                        productName: tipoEquip || 'Equipamento Geral',
+                        weightCapacity: capacidade,
+                        loadCells: celulas,
+                        equipmentSerial: nsEquip || 'S/N',
+                        viewerModel: visor,
+                        viewerSerial: nsVisor,
+                        
+                        installDate: dtInicio || new Date().toISOString().split('T')[0],
+                        type: mapEquipmentType(tipoEquip || ''),
+                        visits: [],
+                        contract: {
+                            id: `imp-ctr-${index}`,
+                            equipmentId: '', // set after
+                            status: getVal(row, 'ESTADO'),
+                            serviceType: tipoServico,
+                            estimatedHH: getVal(row, 'HH_ESTIMADO'),
+                            startDate: dtInicio || new Date().toISOString().split('T')[0],
+                            endDate: dtFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                            invoiceNumber: '',
+                            isPaid: isPaid || getVal(row, 'PAGO').toLowerCase() === 'sim',
+                            totalLightVisits: vLigeiro,
+                            usedLightVisits: 0,
+                            totalTruckVisits: vPesado,
+                            usedTruckVisits: 0,
+                            renewed: false
+                        }
+                    };
+                    if(equipment.contract) equipment.contract.equipmentId = equipment.id;
                     
-                    deliveryAddress: morada,
-                    locality: localidade,
-                    municipality: concelho,
-                    district: distrito,
-                    executionSite: execucao,
-                    description: fullDesc,
-                    
-                    // Display Location Priority
-                    location: execucao || morada || localidade || 'Local não definido',
-                    
-                    productName: tipoEquip || 'Equipamento Geral',
-                    weightCapacity: capacidade,
-                    loadCells: celulas,
-                    equipmentSerial: nsEquip || 'S/N',
-                    viewerModel: visor,
-                    viewerSerial: nsVisor,
-                    
-                    installDate: dtInicio || new Date().toISOString().split('T')[0],
-                    type: mapEquipmentType(tipoEquip || ''),
-                    visits: [],
-                    contract: {
-                        id: `imp-ctr-${index}`,
-                        equipmentId: '', // set after
-                        startDate: dtInicio || new Date().toISOString().split('T')[0],
-                        endDate: dtFim || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-                        invoiceNumber: '',
-                        isPaid: isPaid,
-                        totalLightVisits: vLigeiro,
-                        usedLightVisits: 0,
-                        totalTruckVisits: vPesado,
-                        usedTruckVisits: 0,
-                        renewed: false
-                    }
-                };
-                if(equipment.contract) equipment.contract.equipmentId = equipment.id;
-                
-                client.equipments.push(equipment);
+                    client.equipments.push(equipment);
+                }
+
+                if (dtVisita || getVal(row, 'VISITA_CAMIAO') || getVal(row, 'VISITA_LIGEIRO2')) {
+                    equipment.visits.push({
+                        id: `imp-v-${index}`,
+                        date: dtVisita || new Date().toISOString().split('T')[0],
+                        type: tipoServico as any || 'Assistência Ligeiro',
+                        technician: tecnico || 'Técnico',
+                        notes: notas || '',
+                        attachments: [],
+                        lastVisitCE: getVal(row, 'DATA_VISITA'),
+                        truckVisit: getVal(row, 'VISITA_CAMIAO'),
+                        lightVisit2: getVal(row, 'VISITA_LIGEIRO2'),
+                        truckActivitySuggestion: getVal(row, 'SUGESTAO_CAMIAO'),
+                        nextLightActivity: getVal(row, 'PROXIMA_LIGEIRO'),
+                        restriction: getVal(row, 'RESTRICAO')
+                    });
+                }
             }
         });
 
@@ -301,9 +361,14 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport }) => {
 
   const handleDownloadTemplate = () => {
       const headers = [
-          'CLIENTE', 'MORADA', 'LOCALIDADE', 'CONCELHO', 'DISTRITO', 
-          'TIPO_EQUIP', 'CAPACIDADE', 'NS_EQUIP', 'CELULAS', 'VISOR', 'NS_VISOR',
-          'EXECUCAO', 'DESCRICAO', 'DATA_INICIO', 'DATA_FIM', 'VISITA_LIGEIRO', 'VISITA_PESADO'
+          'ESTADO', 'Tipo de Serviço', 'H-H Estimado', 'ID Ativo', 'Cliente Primavera',
+          'CLIENTE', 'FCM', 'PAGO', 'DATA INICIO CONTRATO', 'DATA FIM CONTRATO',
+          'Localização geográfica', 'MORADA DE ENTREGA', 'LOCALIDADE', 'CONCELHO',
+          'DISTRITO', 'Local de Execução consolidado', 'Descrição do Serviço',
+          'VISITA LIGEIRO', 'VISITA PESADO', 'TIPO EQUIPAMENTO', 'CAPACIDADE CE',
+          'NÚMERO DE SÉRIE EQUIPAMENTO', 'CÉLULA DE CARGA', 'VISOR', 'NÚMERO DE SÉRIE VISOR',
+          'ULTIMA VISITA CE', 'VISITA CAMIÃO', 'VISITA LIGEIRO2', 'Sugestão atividade camião',
+          'Próxima atividade ligeiro', 'Restrição', 'Observação'
       ];
       // Add BOM for Excel UTF-8 recognition and use semicolon delimiter
       const csvContent = "\uFEFF" + headers.join(";");

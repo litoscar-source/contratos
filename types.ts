@@ -7,8 +7,9 @@ export enum EquipmentType {
 
 export enum VisitType {
   RECONSTRUCTION = 'Reconstrução',
-  ASSIST_LIGHT = 'Assistência Ligeira',
-  ASSIST_TRUCK = 'Assistência Camião'
+  CALIBRATION = 'Calibração',
+  ASSIST_LIGHT = 'Assistência Ligeiro',
+  ASSIST_TRUCK = 'Assistência Pesado'
 }
 
 export interface Attachment {
@@ -21,7 +22,7 @@ export interface Visit {
   id: string;
   equipmentId: string;
   date: string;
-  type: VisitType;
+  type: VisitType | string;
   technician: string;
   notes: string;
   files: Attachment[]; 
@@ -30,11 +31,22 @@ export interface Visit {
   newViewerSerial?: string;
   clientName?: string;
   equipmentName?: string;
+  
+  // New fields from import
+  lastVisitCE?: string; // ULTIMA VISITA CE
+  truckVisit?: string; // VISITA CAMIÃO
+  lightVisit2?: string; // VISITA LIGEIRO2
+  truckActivitySuggestion?: string; // Sugestão atividade camião
+  nextLightActivity?: string; // Próxima atividade ligeiro
+  restriction?: string; // Restrição
 }
 
 export interface Contract {
   id: string;
   equipmentId: string;
+  status?: string; // ESTADO
+  serviceType?: string; // Tipo de Serviço
+  estimatedHH?: string; // H-H Estimado
   startDate: string;
   endDate: string;
   invoiceNumber: string;
@@ -55,6 +67,7 @@ export interface Equipment {
   clientId: string;
   
   // New Location & Identification Fields
+  activeId?: string;            // ID Ativo
   geoGrid?: string;             // Localização geográfica
   deliveryAddress?: string;     // MORADA DE ENTREGA
   locality?: string;            // LOCALIDADE
@@ -79,7 +92,9 @@ export interface Equipment {
 
 export interface Client {
   id: string;
+  primaveraId?: string; // Cliente Primavera
   name: string;
+  fcm?: string; // FCM
   address: string;
   locality: string;
   municipality?: string;
